@@ -1,0 +1,46 @@
+---
+#- hosts: all
+- hosts: all
+  tasks:
+    - name: exec local script
+      script: 01_preusermod.sh
+      delegate_to: 127.0.0.1
+      become: false
+      run_once: true
+
+    - name: copy hosts.txt to remove host
+      copy:
+        src: ./hosts.txt 
+        dest: /tmp/ 
+
+    - name: exec usermod.sh in each node
+      script: 01_usermod.sh
+
+    - name: usermod log file name
+      set_fact:
+        usermodlog: "{{DATE}}"
+        #usermodlog: "{{ansible_date_time.date}}-{{ansible_date_time.time}}"
+
+    - name: fetch usermod log
+      fetch:
+        src: /tmp/{{usermodlog}}
+        #dest: /output/{{IP}}/{{IP}}_usermod_{{DATE}}
+        dest: /output/{{IP}}/usermod_{{usermodlog}}
+        flat: yes
+
+    - name: remove hosts.txt local_ip.txt passwd log usermod log from target
+      file:
+        path: /tmp/{{item}}
+        state: absent
+      with_items:
+         - hosts.txt
+         - "{{usermodlog}}"
+         - output
+         - errors
+         - local_ip.txt
+
+    - name: exec 01_postusermod.sh in local host
+      script: 01_postusermod.sh
+      delegate_to: 127.0.0.1
+      become: false
+      run_once: true

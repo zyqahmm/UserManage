@@ -1,0 +1,43 @@
+---
+- hosts: all
+  tasks:
+    - name: exec local script
+      script: 01_preuserdel.sh
+      delegate_to: 127.0.0.1
+      become: false
+      run_once: true
+
+    - name: copy hosts.txt to remove host
+      copy:
+        src: ./hosts.txt 
+        dest: /tmp/ 
+
+    - name: exec userdel.sh in each node
+      script: 01_userdel.sh
+
+    - name: userdel log file name
+      set_fact:
+        userdellog: "{{DATE}}"
+        #userdellog: "{{ansible_date_time.date}}-{{ansible_date_time.time}}"
+
+    - name: fetch userdel log
+      fetch:
+        src: /tmp/{{userdellog}}
+        #dest: /output/{{IP}}/{{IP}}_userdel_{{DATE}}
+        dest: /output/{{IP}}/userdel_{{userdellog}}
+        flat: yes
+
+    - name: remove hosts.txt local_ip.txt passwd log userdel log from target
+      file:
+        path: /tmp/{{item}}
+        state: absent
+      with_items:
+         - hosts.txt
+         - "{{userdellog}}"
+         - local_ip.txt
+
+    - name: exec 01_postuserdel.sh in local host
+      script: 01_postuserdel.sh
+      delegate_to: 127.0.0.1
+      become: false
+      run_once: true

@@ -1,0 +1,45 @@
+---
+#- hosts: all
+- hosts: all
+  tasks:
+    - name: exec local script
+      script: 01_preuseradd.sh
+      delegate_to: 127.0.0.1
+      become: false
+      run_once: true
+
+    - name: copy hosts.txt to remove host
+      copy:
+        src: ./hosts.txt 
+        dest: /tmp/ 
+
+    - name: exec useradd.sh in each node
+      script: 01_useradd.sh
+
+    - name: useradd log file name
+      set_fact:
+        useraddlog: "{{DATE}}"
+        #useraddlog: "{{ansible_date_time.date}}-{{ansible_date_time.time}}"
+
+    - name: fetch useradd log
+      fetch:
+        src: /tmp/{{useraddlog}}
+        #dest: /output/{{IP}}/{{IP}}_useradd_{{DATE}}
+        dest: /output/{{IP}}/useradd_{{useraddlog}}
+        flat: yes
+
+    - name: remove hosts.txt local_ip.txt passwd log useradd log from target
+      file:
+        path: /tmp/{{item}}
+        state: absent
+      with_items:
+         - hosts.txt
+         - "{{useraddlog}}"
+         - passwd
+         - local_ip.txt
+
+    - name: exec 01_postuseradd.sh in local host
+      script: 01_postuseradd.sh
+      delegate_to: 127.0.0.1
+      become: false
+      run_once: true
